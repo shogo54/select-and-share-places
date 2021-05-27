@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Loader } from '@googlemaps/js-api-loader';
 import config from '../config.json';
 
 const form = document.querySelector('form')!;
@@ -11,28 +12,45 @@ type GoogleGeocodingResponse = {
   status: 'OK' | 'ZERO_RESULTS';
 };
 
-function searchAddressHandler(event: Event) {
+async function searchAddressHandler(event: Event) {
   event.preventDefault();
   const enteredAddress = addressInput.value;
 
-  // send this to Google's API
-  axios
-    .get<GoogleGeocodingResponse>(
+  try {
+    // Send address to Google Map API
+    const response = await axios.get<GoogleGeocodingResponse>(
       `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURI(
         enteredAddress
       )}&key=${GOOGLE_API_KEY}`
-    )
-    .then((response) => {
-      if (response.data.status !== 'OK') {
-        throw new Error('Could not fetch location');
-      }
-      const coordinates = response.data.results[0].geometry.location;
-      console.log(coordinates);
-    })
-    .catch((err) => {
-      alert(err.message);
-      console.log(err);
+    );
+
+    // Check for response from API
+    if (response.data.status !== 'OK') {
+      throw new Error('Could not fetch location');
+    }
+    const coordinates = response.data.results[0].geometry.location;
+
+    // Load Google Map API for rendering a map
+    const loader = new Loader({
+      apiKey: GOOGLE_API_KEY,
+      version: 'weekly',
     });
+    await loader.load();
+
+    // Render Google Map
+    const map = new google.maps.Map(document.getElementById('map')!, {
+      center: coordinates,
+      zoom: 16,
+    });
+
+    // Render a marker in the map
+    new google.maps.Marker({
+      position: coordinates,
+      map: map,
+    });
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
 form?.addEventListener('submit', searchAddressHandler);
